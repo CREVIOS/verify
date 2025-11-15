@@ -1,4 +1,4 @@
-"""Weaviate vector store service for semantic search."""
+"""Weaviate vector store service for semantic search with OpenAI embeddings."""
 
 from typing import List, Dict, Optional
 from uuid import UUID
@@ -6,20 +6,19 @@ import weaviate
 from weaviate.classes.init import Auth
 from weaviate.classes.query import MetadataQuery
 from loguru import logger
-from sentence_transformers import SentenceTransformer
+import asyncio
 
 from app.core.config import settings
+from app.services.embedding_service import embedding_service
 
 
 class VectorStoreService:
-    """Service for managing vector embeddings in Weaviate."""
+    """Service for managing vector embeddings in Weaviate using OpenAI."""
 
     def __init__(self):
-        """Initialize Weaviate client and embedding model."""
+        """Initialize Weaviate client."""
         self.client = None
-        self.embedding_model = None
         self._initialize_client()
-        self._initialize_embedding_model()
 
     def _initialize_client(self):
         """Initialize Weaviate client."""
@@ -44,15 +43,6 @@ class VectorStoreService:
             logger.info("Weaviate client initialized successfully")
         except Exception as e:
             logger.error(f"Error initializing Weaviate client: {e}")
-            raise
-
-    def _initialize_embedding_model(self):
-        """Initialize sentence transformer model for embeddings."""
-        try:
-            self.embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL)
-            logger.info(f"Embedding model loaded: {settings.EMBEDDING_MODEL}")
-        except Exception as e:
-            logger.error(f"Error loading embedding model: {e}")
             raise
 
     def create_schema(self, project_id: UUID):
@@ -124,24 +114,24 @@ class VectorStoreService:
             logger.error(f"Error creating Weaviate schema: {e}")
             raise
 
-    def embed_text(self, text: str) -> List[float]:
+    async def embed_text(self, text: str) -> List[float]:
         """
-        Generate embedding for text.
+        Generate embedding for text using OpenAI.
 
         Args:
             text: Text to embed
 
         Returns:
-            Embedding vector
+            Embedding vector (3072 dimensions for text-embedding-3-large)
         """
         try:
-            embedding = self.embedding_model.encode(text, convert_to_numpy=True)
-            return embedding.tolist()
+            embedding = await embedding_service.embed_text(text)
+            return embedding
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
             raise
 
-    def index_chunks(
+    async def index_chunks(
         self,
         project_id: UUID,
         chunks: List[Dict],
@@ -150,7 +140,7 @@ class VectorStoreService:
         document_type: str
     ) -> List[str]:
         """
-        Index document chunks in Weaviate.
+        Index document chunks in Weaviate using OpenAI embeddings.
 
         Args:
             project_id: Project UUID
@@ -173,11 +163,12 @@ class VectorStoreService:
             for i in range(0, len(chunks), batch_size):
                 batch = chunks[i:i + batch_size]
 
-                with collection.batch.dynamic() as batch_context:
-                    for chunk in batch:
-                        # Generate embedding
-                        vector = self.embed_text(chunk["content"])
+                # Generate embeddings for entire batch using OpenAI
+                texts = [chunk["content"] for chunk in batch]
+                vectors = await embedding_service.embed_batch(texts)
 
+                with collection.batch.dynamic() as batch_context:
+                    for chunk, vector in zip(batch, vectors):
                         # Prepare properties
                         properties = {
                             "content": chunk["content"],
@@ -206,7 +197,7 @@ class VectorStoreService:
             logger.error(f"Error indexing chunks: {e}")
             raise
 
-    def search_similar(
+    async def search_similar(
         self,
         project_id: UUID,
         query: str,
@@ -214,7 +205,7 @@ class VectorStoreService:
         min_similarity: float = 0.7
     ) -> List[Dict]:
         """
-        Search for similar chunks using semantic search.
+        Search for similar chunks using semantic search with OpenAI embeddings.
 
         Args:
             project_id: Project UUID
@@ -229,8 +220,8 @@ class VectorStoreService:
             collection_name = f"Project_{str(project_id).replace('-', '_')}"
             collection = self.client.collections.get(collection_name)
 
-            # Generate query embedding
-            query_vector = self.embed_text(query)
+            # Generate query embedding using OpenAI
+            query_vector = await self.embed_text(query)
 
             # Perform vector search
             response = collection.query.near_vector(
