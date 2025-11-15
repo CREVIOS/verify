@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
+import { Toaster } from '@/components/ui/toaster'
 
 export const metadata: Metadata = {
   title: 'IPO Document Verification',
@@ -15,9 +13,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning>
+      <body className="font-sans antialiased">
         {children}
+        <Toaster />
       </body>
     </html>
   )
