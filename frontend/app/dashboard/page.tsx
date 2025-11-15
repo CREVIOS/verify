@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Plus, Search, FileText, Clock, CheckCircle2, XCircle } from 'lucide-react'
-import { projectsApi } from '@/lib/api/projects'
-import { VerificationStatus, type ProjectWithStats } from '@/lib/api/types'
+import { projectsApi } from '@/services/projects'
+import { VerificationStatus, type ProjectWithStats } from '@/services/types'
 
 function getStatusBadge(status?: VerificationStatus) {
   switch (status) {
