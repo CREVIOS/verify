@@ -4,55 +4,30 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Plus, Search, FileText, Clock, CheckCircle2, XCircle } from 'lucide-react'
+import { projectsApi } from '@/lib/api/projects'
+import { VerificationStatus, type ProjectWithStats } from '@/lib/api/types'
 
-// Mock data - replace with actual API calls
-const projects = [
-  {
-    id: '1',
-    name: 'Tech Corp IPO 2024',
-    status: 'completed',
-    documentsCount: 12,
-    validatedSentences: 1847,
-    uncertainSentences: 23,
-    rejectedSentences: 5,
-    createdAt: '2024-01-15',
-  },
-  {
-    id: '2',
-    name: 'FinServe Holdings IPO',
-    status: 'processing',
-    documentsCount: 8,
-    validatedSentences: 892,
-    uncertainSentences: 45,
-    rejectedSentences: 12,
-    createdAt: '2024-01-18',
-  },
-  {
-    id: '3',
-    name: 'GreenEnergy Inc IPO',
-    status: 'draft',
-    documentsCount: 5,
-    validatedSentences: 0,
-    uncertainSentences: 0,
-    rejectedSentences: 0,
-    createdAt: '2024-01-20',
-  },
-]
-
-const getStatusBadge = (status: string) => {
+function getStatusBadge(status?: VerificationStatus) {
   switch (status) {
-    case 'completed':
+    case VerificationStatus.COMPLETED:
       return <Badge variant="validated">Completed</Badge>
-    case 'processing':
+    case VerificationStatus.PROCESSING:
       return <Badge variant="uncertain">Processing</Badge>
-    case 'draft':
-      return <Badge variant="outline">Draft</Badge>
+    case VerificationStatus.INDEXING:
+      return <Badge variant="uncertain">Indexing</Badge>
+    case VerificationStatus.PENDING:
+      return <Badge variant="outline">Pending</Badge>
+    case VerificationStatus.FAILED:
+      return <Badge variant="destructive">Failed</Badge>
     default:
-      return <Badge>{status}</Badge>
+      return <Badge variant="outline">Draft</Badge>
   }
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  // Fetch real projects from API
+  const { items: projects } = await projectsApi.getAll()
+
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
@@ -86,73 +61,73 @@ export default function DashboardPage() {
 
       {/* Projects Grid */}
       <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
-            <Link key={project.id} href={`/dashboard/projects/${project.id}`}>
-              <Card className="group transition-all hover:shadow-lg hover:border-primary/50 cursor-pointer">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="line-clamp-1 group-hover:text-primary transition-colors">
-                        {project.name}
-                      </CardTitle>
-                      <CardDescription className="mt-2 flex items-center gap-2">
-                        <Clock className="h-3 w-3" />
-                        {new Date(project.createdAt).toLocaleDateString()}
-                      </CardDescription>
-                    </div>
-                    {getStatusBadge(project.status)}
-                  </div>
-                </CardHeader>
-
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {project.documentsCount} documents
-                      </span>
-                    </div>
-
-                    {project.status !== 'draft' && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-validated" />
-                            <span>Validated</span>
-                          </div>
-                          <span className="font-semibold">{project.validatedSentences}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-uncertain" />
-                            <span>Uncertain</span>
-                          </div>
-                          <span className="font-semibold">{project.uncertainSentences}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <XCircle className="h-4 w-4 text-rejected" />
-                            <span>Rejected</span>
-                          </div>
-                          <span className="font-semibold">{project.rejectedSentences}</span>
-                        </div>
+        {projects.length > 0 ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => (
+              <Link key={project.id} href={`/dashboard/projects/${project.id}`}>
+                <Card className="group transition-all hover:shadow-lg hover:border-primary/50 cursor-pointer">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="line-clamp-1 group-hover:text-primary transition-colors">
+                          {project.name}
+                        </CardTitle>
+                        <CardDescription className="mt-2 flex items-center gap-2">
+                          <Clock className="h-3 w-3" />
+                          {new Date(project.created_at).toLocaleDateString()}
+                        </CardDescription>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
+                      {getStatusBadge(project.latest_job?.status)}
+                    </div>
+                  </CardHeader>
 
-                <CardFooter>
-                  <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                    View Project
-                  </Button>
-                </CardFooter>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          {project.document_count} document{project.document_count !== 1 ? 's' : ''}
+                        </span>
+                      </div>
 
-        {projects.length === 0 && (
+                      {project.latest_job && project.latest_job.status !== VerificationStatus.PENDING && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-validated" />
+                              <span>Validated</span>
+                            </div>
+                            <span className="font-semibold">{project.latest_job.validated_count}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-uncertain" />
+                              <span>Uncertain</span>
+                            </div>
+                            <span className="font-semibold">{project.latest_job.uncertain_count}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <XCircle className="h-4 w-4 text-rejected" />
+                              <span>Incorrect</span>
+                            </div>
+                            <span className="font-semibold">{project.latest_job.incorrect_count}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+
+                  <CardFooter>
+                    <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      View Project
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        ) : (
           <div className="text-center py-12">
             <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">No projects yet</h3>
