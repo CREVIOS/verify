@@ -1,5 +1,5 @@
 """
-Application configuration
+Application configuration with GPT-4 and Gemini 2.5 Pro
 """
 
 from typing import List
@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
 
     # API Keys
-    OPENAI_API_KEY: str = ""
-    MISTRAL_API_KEY: str = ""
-    GEMINI_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""  # For GPT-4 and embeddings
+    GEMINI_API_KEY: str = ""  # For Gemini 2.5 Pro
+    GOOGLE_API_KEY: str = ""  # Alternative for Gemini
 
     # Supabase
     SUPABASE_URL: str = ""
@@ -41,14 +41,26 @@ class Settings(BaseSettings):
     # RabbitMQ
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
 
-    # OpenAI
+    # OpenAI Configuration (GPT-4 + Embeddings)
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-large"
     OPENAI_EMBEDDING_DIMENSION: int = 3072
+    OPENAI_CHAT_MODEL: str = "gpt-4-turbo-preview"  # Latest GPT-4
+    OPENAI_TEMPERATURE: float = 0.1
+    OPENAI_MAX_TOKENS: int = 4096
 
-    # Mistral
-    MISTRAL_MODEL: str = "mistral-large-latest"
-    MISTRAL_TEMPERATURE: float = 0.1
-    MISTRAL_MAX_TOKENS: int = 8192
+    # Gemini Configuration (Gemini 2.5 Pro)
+    GEMINI_MODEL: str = "gemini-2.0-flash-exp"  # Latest Gemini model
+    GEMINI_TEMPERATURE: float = 0.1
+    GEMINI_MAX_TOKENS: int = 4096
+
+    # LangChain Settings
+    LANGCHAIN_TRACING_V2: bool = False
+    LANGCHAIN_API_KEY: str = ""
+
+    # Verification Settings
+    USE_CROSS_VALIDATION: bool = True  # Cross-validate GPT-4 with Gemini
+    CONFIDENCE_THRESHOLD_VALIDATED: float = 0.8
+    CONFIDENCE_THRESHOLD_UNCERTAIN: float = 0.6
 
     class Config:
         env_file = ".env"

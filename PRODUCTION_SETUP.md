@@ -24,8 +24,8 @@
    **Required values:**
    - `POSTGRES_PASSWORD` - Strong database password
    - `RABBITMQ_PASSWORD` - Strong RabbitMQ password
-   - `OPENAI_API_KEY` - OpenAI API key for embeddings
-   - `MISTRAL_API_KEY` - Mistral AI key for verification
+   - `OPENAI_API_KEY` - OpenAI API key for embeddings and GPT-4
+   - `GEMINI_API_KEY` - Google Gemini API key for cross-validation
    - `SUPABASE_URL` and `SUPABASE_KEY` - For document storage
    - `SECRET_KEY` - Random 64-character string
 
@@ -60,7 +60,7 @@ User → Frontend → Backend → PostgreSQL
                   ↓
               Celery Worker → Weaviate (vectors)
                   ↓           ↓
-              RabbitMQ    OpenAI/Mistral APIs
+              RabbitMQ    LangChain → GPT-4 + Gemini
                   ↓
               Redis (cache)
 ```

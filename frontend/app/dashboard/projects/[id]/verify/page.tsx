@@ -1,13 +1,13 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -24,89 +24,62 @@ import {
   ExternalLink,
   Download,
   Filter,
+  Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
-
-// Mock data - replace with actual API
-const supportingDocs = [
-  { id: '1', name: 'Financial_Statements_2023.pdf', pages: 45, relevantCount: 234 },
-  { id: '2', name: 'Audit_Report.pdf', pages: 32, relevantCount: 156 },
-  { id: '3', name: 'Market_Analysis.pdf', pages: 67, relevantCount: 89 },
-  { id: '4', name: 'Legal_Compliance.pdf', pages: 28, relevantCount: 67 },
-]
-
-const sentences = [
-  {
-    id: 's1',
-    content: 'Tech Corp generated revenue of $150 million in fiscal year 2023, representing a 45% increase from the previous year.',
-    page: 3,
-    status: 'validated',
-    confidence: 0.95,
-    citations: [
-      {
-        docId: '1',
-        docName: 'Financial_Statements_2023.pdf',
-        page: 12,
-        excerpt: 'Total revenue for FY2023: $150,000,000',
-        match: 0.98,
-      },
-    ],
-  },
-  {
-    id: 's2',
-    content: 'The company employs approximately 500 people across three offices in major metropolitan areas.',
-    page: 3,
-    status: 'validated',
-    confidence: 0.92,
-    citations: [
-      {
-        docId: '2',
-        docName: 'Audit_Report.pdf',
-        page: 8,
-        excerpt: 'Employee count as of December 31, 2023: 503 full-time employees',
-        match: 0.94,
-      },
-    ],
-  },
-  {
-    id: 's3',
-    content: 'Our market share in the enterprise software segment is estimated at 18% according to industry analysts.',
-    page: 3,
-    status: 'uncertain',
-    confidence: 0.65,
-    citations: [
-      {
-        docId: '3',
-        docName: 'Market_Analysis.pdf',
-        page: 23,
-        excerpt: 'Market share estimates vary between 15-20% depending on methodology',
-        match: 0.67,
-      },
-    ],
-  },
-  {
-    id: 's4',
-    content: 'The company has filed patents for 50 unique technologies in the past two years.',
-    page: 4,
-    status: 'rejected',
-    confidence: 0.35,
-    citations: [
-      {
-        docId: '4',
-        docName: 'Legal_Compliance.pdf',
-        page: 15,
-        excerpt: 'Total patent applications filed: 42 (not all approved)',
-        match: 0.42,
-      },
-    ],
-  },
-]
+import { projectsApi } from '@/services/projects'
+import { sentencesApi } from '@/services/sentences'
+import type { ProjectWithStatsResponse, VerifiedSentenceResponse, DocumentResponse } from '@/services/types'
+import { ValidationResult } from '@/services/types'
+import { toast } from '@/hooks/use-toast'
 
 export default function VerificationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const [selectedSentence, setSelectedSentence] = useState(sentences[0])
+  const [project, setProject] = useState<ProjectWithStatsResponse | null>(null)
+  const [sentences, setSentences] = useState<VerifiedSentenceResponse[]>([])
+  const [supportingDocs, setSupportingDocs] = useState<DocumentResponse[]>([])
+  const [selectedSentence, setSelectedSentence] = useState<VerifiedSentenceResponse | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  useEffect(() => {
+    loadData()
+  }, [id])
+
+  async function loadData() {
+    try {
+      setLoading(true)
+
+      // Load project details
+      const projectData = await projectsApi.getById(id)
+      setProject(projectData)
+
+      // Load supporting documents
+      setSupportingDocs(projectData.supporting_documents)
+
+      // Load verified sentences if verification job exists
+      if (projectData.latest_job) {
+        const sentencesData = await sentencesApi.getByJobId(projectData.latest_job.id, {
+          page: 1,
+          limit: 100,
+        })
+        setSentences(sentencesData.items)
+        if (sentencesData.items.length > 0) {
+          setSelectedSentence(sentencesData.items[0])
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error loading verification data',
+        description: error.message || 'Failed to load verification details',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredSentences = sentences.filter((s) => {
     const matchesSearch = s.content.toLowerCase().includes(searchQuery.toLowerCase())
@@ -114,30 +87,91 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
     return matchesSearch && matchesStatus
   })
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: ValidationResult) => {
     switch (status) {
-      case 'validated':
+      case ValidationResult.VALIDATED:
         return 'bg-validated/10 hover:bg-validated/20 border-validated/30'
-      case 'uncertain':
+      case ValidationResult.UNCERTAIN:
         return 'bg-uncertain/10 hover:bg-uncertain/20 border-uncertain/30'
-      case 'rejected':
+      case ValidationResult.INCORRECT:
         return 'bg-rejected/10 hover:bg-rejected/20 border-rejected/30'
       default:
         return 'bg-muted hover:bg-muted/80'
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: ValidationResult) => {
     switch (status) {
-      case 'validated':
+      case ValidationResult.VALIDATED:
         return <Badge variant="validated">Validated</Badge>
-      case 'uncertain':
+      case ValidationResult.UNCERTAIN:
         return <Badge variant="uncertain">Uncertain</Badge>
-      case 'rejected':
-        return <Badge variant="destructive">Rejected</Badge>
+      case ValidationResult.INCORRECT:
+        return <Badge variant="destructive">Incorrect</Badge>
       default:
         return <Badge>{status}</Badge>
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="h-screen flex flex-col bg-background">
+        <div className="border-b px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link href={`/dashboard/projects/${id}`}>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </Button>
+              </Link>
+              <Separator orientation="vertical" className="h-6" />
+              <Skeleton className="h-6 w-48" />
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading verification data...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!project || !project.latest_job) {
+    return (
+      <div className="h-screen flex flex-col bg-background">
+        <div className="border-b px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Link href={`/dashboard/projects/${id}`}>
+              <Button variant="ghost" size="sm" className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
+            </Link>
+            <Separator orientation="vertical" className="h-6" />
+            <div>
+              <h1 className="text-lg font-semibold">{project?.name || 'Project'}</h1>
+              <p className="text-sm text-muted-foreground">Verification Interface</p>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h2 className="text-lg font-semibold mb-2">No Verification Data</h2>
+            <p className="text-sm text-muted-foreground">
+              Start verification from the project page to see results here
+            </p>
+            <Link href={`/dashboard/projects/${id}`}>
+              <Button className="mt-4">Go to Project</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -154,8 +188,10 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
             </Link>
             <Separator orientation="vertical" className="h-6" />
             <div>
-              <h1 className="text-lg font-semibold">Tech Corp IPO 2024</h1>
-              <p className="text-sm text-muted-foreground">Verification Interface</p>
+              <h1 className="text-lg font-semibold">{project.name}</h1>
+              <p className="text-sm text-muted-foreground">
+                Verification Interface - {sentences.length} sentences analyzed
+              </p>
             </div>
           </div>
           <Button variant="outline" size="sm" className="gap-2">
@@ -193,17 +229,23 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
                         <FileText className="h-4 w-4 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{doc.name}</p>
+                        <p className="text-sm font-medium truncate">{doc.original_filename}</p>
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{doc.pages} pages</span>
+                          <span>{doc.page_count || 0} pages</span>
                           <span>•</span>
-                          <span>{doc.relevantCount} citations</span>
+                          <span>{(doc.file_size / 1024 / 1024).toFixed(1)} MB</span>
                         </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
+              {supportingDocs.length === 0 && (
+                <div className="text-center py-12">
+                  <FileText className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-xs text-muted-foreground">No supporting documents</p>
+                </div>
+              )}
             </div>
           </ScrollArea>
         </div>
@@ -212,12 +254,24 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
         <div className="col-span-6 flex flex-col">
           <div className="p-4 border-b bg-background">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold">Main Document - Page 3</h2>
+              <h2 className="font-semibold">
+                {project.main_document?.original_filename || 'Main Document'}
+                {selectedSentence && ` - Page ${selectedSentence.page_number}`}
+              </h2>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
                   <ChevronUp className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                >
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </div>
@@ -266,11 +320,11 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
                     <div className="flex items-center gap-2">
                       {getStatusBadge(sentence.status)}
                       <span className="text-xs text-muted-foreground">
-                        Page {sentence.page}
+                        Page {sentence.page_number}
                       </span>
                     </div>
                     <div className="text-xs font-medium">
-                      {(sentence.confidence * 100).toFixed(0)}% confidence
+                      {(sentence.confidence_score * 100).toFixed(0)}% confidence
                     </div>
                   </div>
                   <p className="text-sm leading-relaxed">{sentence.content}</p>
@@ -312,24 +366,24 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
                           <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                             <div
                               className={`h-full ${
-                                selectedSentence.confidence >= 0.8
+                                selectedSentence.confidence_score >= 0.8
                                   ? 'bg-validated'
-                                  : selectedSentence.confidence >= 0.6
+                                  : selectedSentence.confidence_score >= 0.6
                                   ? 'bg-uncertain'
                                   : 'bg-rejected'
                               }`}
-                              style={{ width: `${selectedSentence.confidence * 100}%` }}
+                              style={{ width: `${selectedSentence.confidence_score * 100}%` }}
                             />
                           </div>
                           <span className="text-xs font-medium">
-                            {(selectedSentence.confidence * 100).toFixed(0)}%
+                            {(selectedSentence.confidence_score * 100).toFixed(0)}%
                           </span>
                         </div>
                       </div>
 
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Page Number</p>
-                        <p className="text-sm font-medium">Page {selectedSentence.page}</p>
+                        <p className="text-sm font-medium">Page {selectedSentence.page_number}</p>
                       </div>
 
                       <div>
@@ -344,59 +398,76 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
                   {/* Citations */}
                   <div className="space-y-3">
                     <h3 className="text-sm font-semibold">Source Citations</h3>
-                    {selectedSentence.citations.map((citation, idx) => (
-                      <Card key={idx} className="border-primary/30">
-                        <CardContent className="p-4">
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium truncate">
-                                  {citation.docName}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  Page {citation.page}
-                                </p>
+                    {selectedSentence.citations && selectedSentence.citations.length > 0 ? (
+                      selectedSentence.citations.map((citation, idx) => (
+                        <Card key={idx} className="border-primary/30">
+                          <CardContent className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium truncate">
+                                    Supporting Document
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Page {citation.page_number}
+                                  </p>
+                                </div>
+                                <Badge variant="outline" className="text-xs">
+                                  {(citation.similarity_score * 100).toFixed(0)}% match
+                                </Badge>
                               </div>
-                              <Badge variant="outline" className="text-xs">
-                                {(citation.match * 100).toFixed(0)}% match
-                              </Badge>
-                            </div>
 
-                            <Separator />
+                              <Separator />
 
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-2">
-                                Relevant excerpt:
-                              </p>
-                              <div className="text-xs bg-muted/50 p-3 rounded border">
-                                "{citation.excerpt}"
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  Relevant excerpt:
+                                </p>
+                                <div className="text-xs bg-muted/50 p-3 rounded border">
+                                  "{citation.content}"
+                                </div>
                               </div>
-                            </div>
 
-                            <Button variant="outline" size="sm" className="w-full gap-2">
-                              <ExternalLink className="h-3 w-3" />
-                              View in Document
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                              {citation.metadata && (
+                                <div className="text-xs text-muted-foreground">
+                                  <span className="font-medium">Source:</span> {citation.metadata.document_name || 'Supporting document'}
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center py-4">
+                        No citations found
+                      </p>
+                    )}
                   </div>
 
                   {/* AI Reasoning */}
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm">AI Reasoning</CardTitle>
+                      <CardTitle className="text-sm">AI Analysis</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        {selectedSentence.status === 'validated' &&
-                          'The claim is well-supported by primary source documents with high confidence match scores. Financial figures cross-reference directly with official statements.'}
-                        {selectedSentence.status === 'uncertain' &&
-                          'The claim has some supporting evidence but contains qualitative assessments that vary across sources. Further manual verification recommended.'}
-                        {selectedSentence.status === 'rejected' &&
-                          'The numerical claim conflicts with official documentation. Source documents indicate a different figure that does not match the stated claim.'}
-                      </p>
+                      <div className="space-y-2">
+                        {selectedSentence.ai_reasoning && (
+                          <div>
+                            <p className="text-xs font-medium mb-1">Reasoning:</p>
+                            <p className="text-xs leading-relaxed text-muted-foreground">
+                              {selectedSentence.ai_reasoning}
+                            </p>
+                          </div>
+                        )}
+                        {selectedSentence.metadata && (
+                          <div className="mt-3 pt-3 border-t">
+                            <p className="text-xs font-medium mb-1">Analyzed by:</p>
+                            <p className="text-xs text-muted-foreground">
+                              GPT-4 and Gemini 2.5 Pro
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 </>

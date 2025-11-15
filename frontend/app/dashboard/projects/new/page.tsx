@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
 import { Upload, FileText, X, ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import { projectsApi } from '@/services/projects'
 import Link from 'next/link'
 
 export default function NewProjectPage() {
@@ -70,46 +71,54 @@ export default function NewProjectPage() {
     setUploadProgress(0)
 
     try {
-      // Simulate upload progress
-      const interval = setInterval(() => {
+      // Progress indicator for user feedback
+      const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) {
-            clearInterval(interval)
+            clearInterval(progressInterval)
             return 90
           }
           return prev + 10
         })
-      }, 200)
+      }, 300)
 
-      // TODO: Replace with actual API call
-      const formData = new FormData()
-      formData.append('name', projectName)
-      formData.append('description', description)
-      formData.append('main_document', mainDocument)
-      supportingDocs.forEach(doc => {
-        formData.append('supporting_documents', doc)
+      // Step 1: Create project
+      const project = await projectsApi.create({
+        name: projectName,
+        description: description || undefined,
       })
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      setUploadProgress(30)
 
-      clearInterval(interval)
+      // Step 2: Upload main document
+      await projectsApi.uploadMainDocument(project.id, mainDocument)
+      setUploadProgress(60)
+
+      // Step 3: Upload supporting documents if any
+      if (supportingDocs.length > 0) {
+        for (let i = 0; i < supportingDocs.length; i++) {
+          await projectsApi.uploadSupportingDocument(project.id, supportingDocs[i])
+          setUploadProgress(60 + (30 / supportingDocs.length) * (i + 1))
+        }
+      }
+
+      clearInterval(progressInterval)
       setUploadProgress(100)
 
       toast({
         title: 'Project created successfully',
-        description: 'Your documents are being processed',
+        description: 'Your documents have been uploaded and are being indexed',
         variant: 'default',
       })
 
       // Navigate to project detail page
       setTimeout(() => {
-        router.push('/dashboard/projects/1')
+        router.push(`/dashboard/projects/${project.id}`)
       }, 1000)
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Upload failed',
-        description: 'Please try again',
+        description: error.message || 'Failed to create project. Please try again.',
         variant: 'destructive',
       })
       setUploading(false)
