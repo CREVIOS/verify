@@ -54,6 +54,7 @@ python-docx = "^1.1.0"
 pdf2image = "^1.17.0"
 pytesseract = "^0.3.10"
 pypdf = "^4.0.1"
+openpyxl = "^3.1.2"
 
 # Text processing
 nltk = "^3.8.1"

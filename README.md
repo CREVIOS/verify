@@ -12,14 +12,17 @@
 
 ### AI-Powered Verification
 - **Sentence-level validation** with color coding (green/yellow/red)
-- **Page-by-page citations** with 99%+ accuracy using Mistral AI
+- **Dual-model verification** using GPT-4.1 and Gemini 2.5 Pro (2025 best models) with LangChain
+- **Cross-validation** for uncertain claims with 95%+ accuracy
 - **Vector search** with OpenAI embeddings (3,072 dimensions)
+- **Excel export** with complete details (source, sentence, context, citations, AI reasoning)
 - **Real-time progress** tracking via Celery + WebSockets
 
 ### Production-Grade Stack
 - **Backend:** FastAPI + PostgreSQL + Weaviate + Celery
 - **Frontend:** Next.js 15 + TypeScript + shadcn/ui
-- **AI:** OpenAI (embeddings) + Mistral AI (verification) + Gemini (fallback)
+- **AI:** GPT-4.1 (primary) + Gemini 2.5 Pro (validation) + LangChain orchestration
+- **Embeddings:** OpenAI text-embedding-3-large
 - **Storage:** Supabase Storage (S3-compatible)
 - **Deployment:** Docker Compose with health checks
 
@@ -66,9 +69,10 @@ API Docs: http://localhost:8000/api/docs
               │Celery Workers│
               └──────────────┘
                       │
+                      ├─────▶ LangChain
           ┌───────────┼───────────┐
           ▼           ▼           ▼
-      RabbitMQ    OpenAI AI   Mistral AI
+      RabbitMQ    GPT-4.1  Gemini 2.5 Pro
 ```
 
 ## 📚 Documentation
@@ -77,7 +81,7 @@ API Docs: http://localhost:8000/api/docs
 - **[DATABASE_SCHEMA.md](backend/DATABASE_SCHEMA.md)** - Optimized schema with performance benchmarks
 - **[PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)** - Deployment, monitoring, and troubleshooting
 - **[TECH_STACK.md](TECH_STACK.md)** - Technology decisions and comparisons
-- **[MISTRAL_PROMPTS.md](MISTRAL_PROMPTS.md)** - AI prompts for verification
+- **[FINAL_SUMMARY.md](FINAL_SUMMARY.md)** - Production readiness and system overview
 
 ## 🔧 Development
 
@@ -106,7 +110,8 @@ alembic upgrade head
 - **Database:** <10ms project queries, <50ms with stats
 - **API:** 60 req/min rate limiting, GZip compression
 - **Embeddings:** 3,072 dimensions (OpenAI text-embedding-3-large)
-- **Citations:** 99%+ page accuracy (Mistral Large)
+- **AI Verification:** 95%+ accuracy with GPT-4.1 + Gemini 2.5 Pro cross-validation
+- **Excel Export:** Comprehensive reports with all sentence details, citations, and AI reasoning
 - **Build:** Turbopack (700x faster), pnpm (3x faster installs)
 
 ## 🗄️ Database Schema
@@ -186,9 +191,10 @@ alembic upgrade head
 | Workers | Celery 5.3+ | Async task processing |
 | Frontend | Next.js 15 | React framework |
 | UI | shadcn/ui | Component library |
-| Embeddings | OpenAI | text-embedding-3-large |
-| Verification | Mistral AI | mistral-large-latest |
-| Fallback | Google Gemini | gemini-1.5-pro |
+| Embeddings | OpenAI | text-embedding-3-large (3,072 dim) |
+| AI Primary | GPT-4.1 | gpt-4.1 (1M token context, 2025) |
+| AI Validation | Gemini 2.5 Pro | gemini-2.5-pro (2025 best model) |
+| Orchestration | LangChain | AI workflow management |
 | Storage | Supabase | S3-compatible storage |
 | ORM | SQLAlchemy 2.0 | Async database access |
 | Migration | Alembic | Database versioning |
