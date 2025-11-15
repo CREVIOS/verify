@@ -5,12 +5,15 @@ Verified Sentences API endpoints
 from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.db.models import VerifiedSentence, VerificationJob, ValidationResult
+from app.db.models import VerifiedSentence, VerificationJob, ValidationResult, Project
+from app.services.excel_export import ExcelExportService
+from app.schemas.sentences import VerifiedSentenceResponse
 
 router = APIRouter(prefix="/sentences", tags=["sentences"])
 
@@ -291,3 +294,82 @@ async def search_sentences(
         "per_page": per_page,
         "pages": pages
     }
+
+@router.get("/jobs/{job_id}/export")
+async def export_verification_results(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Export verification results to Excel
+    
+    Returns Excel file with all sentence details: source name, sentence,
+    context, citations, AI reasoning, confidence scores, etc.
+    """
+    # Get verification job with project
+    job_query = select(VerificationJob).where(VerificationJob.id == job_id)
+    result = await db.execute(job_query)
+    job = result.scalar_one_or_none()
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Verification job not found")
+    
+    # Get project name
+    project_query = select(Project).where(Project.id == job.project_id)
+    project_result = await db.execute(project_query)
+    project = project_result.scalar_one_or_none()
+    project_name = project.name if project else "Unknown Project"
+    
+    # Get all verified sentences for this job
+    query = (
+        select(VerifiedSentence)
+        .where(VerifiedSentence.verification_job_id == job_id)
+        .order_by(VerifiedSentence.page_number, VerifiedSentence.sentence_index)
+    )
+    
+    result = await db.execute(query)
+    sentences = result.scalars().all()
+    
+    if not sentences:
+        raise HTTPException(status_code=404, detail="No verification results found")
+    
+    # Convert to response models
+    sentence_responses = []
+    for s in sentences:
+        sentence_responses.append(
+            VerifiedSentenceResponse(
+                id=str(s.id),
+                verification_job_id=str(s.verification_job_id),
+                sentence_index=s.sentence_index,
+                content=s.content,
+                page_number=s.page_number,
+                start_char=s.start_char,
+                end_char=s.end_char,
+                context_before=s.context_before,
+                context_after=s.context_after,
+                status=s.validation_result,
+                confidence_score=s.confidence_score or 0.0,
+                ai_reasoning=s.reasoning,
+                citations=s.citations or [],
+                metadata=s.metadata or {},
+                manually_reviewed=s.manually_reviewed,
+                reviewer_notes=s.reviewer_notes,
+                created_at=s.created_at,
+                updated_at=s.updated_at
+            )
+        )
+    
+    # Generate Excel file
+    excel_file = ExcelExportService.export_verification_results(
+        sentences=sentence_responses,
+        project_name=project_name
+    )
+    
+    # Return as streaming response
+    filename = f"{project_name.replace(' ', '_')}_verification_results.xlsx"
+    
+    return StreamingResponse(
+        excel_file,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

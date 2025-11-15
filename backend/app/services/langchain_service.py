@@ -1,6 +1,6 @@
 """
 LangChain Service for IPO Document Verification
-Uses GPT-4 and Gemini 2.5 Pro for state-of-the-art verification
+Uses GPT-4.1 and Gemini 2.5 Pro (2025 best models) for state-of-the-art verification
 """
 
 from typing import List, Dict, Any, Optional
@@ -36,22 +36,22 @@ class VerificationResult(BaseModel):
 
 class LangChainVerificationService:
     """
-    Service for document verification using LangChain with GPT-4 and Gemini 2.5 Pro
+    Service for document verification using LangChain with GPT-4.1 and Gemini 2.5 Pro (2025 best models)
     """
 
     def __init__(self):
-        # Initialize GPT-4 (primary model for verification)
+        # Initialize GPT-4.1 (primary model for verification - 2025 best model)
         self.gpt4 = ChatOpenAI(
-            model="gpt-4-turbo-preview",  # Latest GPT-4 model
-            temperature=0.1,  # Low temperature for factual verification
-            max_tokens=4096,
+            model=settings.OPENAI_CHAT_MODEL,  # GPT-4.1 - 1M token context
+            temperature=settings.OPENAI_TEMPERATURE,
+            max_tokens=settings.OPENAI_MAX_TOKENS,
             openai_api_key=settings.OPENAI_API_KEY
         )
 
-        # Initialize Gemini 2.5 Pro (secondary model for cross-validation)
+        # Initialize Gemini 2.5 Pro (secondary model for cross-validation - 2025 best model)
         self.gemini = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-exp",  # Latest Gemini model (2.5 Pro when available)
-            temperature=0.1,
+            model=settings.GEMINI_MODEL,  # Gemini 2.5 Pro - Google's most intelligent model
+            temperature=settings.GEMINI_TEMPERATURE,
             google_api_key=settings.GEMINI_API_KEY
         )
 

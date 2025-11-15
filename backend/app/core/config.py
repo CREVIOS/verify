@@ -41,15 +41,15 @@ class Settings(BaseSettings):
     # RabbitMQ
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
 
-    # OpenAI Configuration (GPT-4 + Embeddings)
+    # OpenAI Configuration (GPT-4.1 + Embeddings)
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-large"
     OPENAI_EMBEDDING_DIMENSION: int = 3072
-    OPENAI_CHAT_MODEL: str = "gpt-4-turbo-preview"  # Latest GPT-4
+    OPENAI_CHAT_MODEL: str = "gpt-4.1"  # GPT-4.1 (2025) - 1M token context, superior coding/reasoning
     OPENAI_TEMPERATURE: float = 0.1
     OPENAI_MAX_TOKENS: int = 4096
 
     # Gemini Configuration (Gemini 2.5 Pro)
-    GEMINI_MODEL: str = "gemini-2.0-flash-exp"  # Latest Gemini model
+    GEMINI_MODEL: str = "gemini-2.5-pro"  # Gemini 2.5 Pro (2025) - Google's most intelligent model
     GEMINI_TEMPERATURE: float = 0.1
     GEMINI_MAX_TOKENS: int = 4096
 

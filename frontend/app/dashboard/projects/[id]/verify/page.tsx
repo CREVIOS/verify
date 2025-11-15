@@ -43,6 +43,7 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -78,6 +79,72 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleExport() {
+    if (!project || !project.latest_job) {
+      toast({
+        title: 'No data to export',
+        description: 'Please run verification first',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setExporting(true)
+
+      // Call backend export API
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(
+        `${API_URL}/api/sentences/jobs/${project.latest_job.id}/export`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to export verification results')
+      }
+
+      // Get filename from response headers
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let filename = 'verification_results.xlsx'
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/)
+        if (filenameMatch) {
+          filename = filenameMatch[1]
+        }
+      }
+
+      // Download the file
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast({
+        title: 'Export successful',
+        description: 'Verification results downloaded as Excel file',
+        variant: 'default',
+      })
+    } catch (error: any) {
+      toast({
+        title: 'Export failed',
+        description: error.message || 'Failed to export results',
+        variant: 'destructive',
+      })
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -194,9 +261,24 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" />
-            Export
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={handleExport}
+            disabled={exporting || !project?.latest_job}
+          >
+            {exporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                Export to Excel
+              </>
+            )}
           </Button>
         </div>
       </div>
