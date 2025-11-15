@@ -55,16 +55,26 @@ class Settings(BaseSettings):
     GEMINI_TEMPERATURE: float = 0.1
     GEMINI_MAX_TOKENS: int = 8192
 
-    # Embeddings
-    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
-    EMBEDDING_DIMENSION: int = 384
+    # OpenAI (for embeddings)
+    OPENAI_API_KEY: str
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-large"
+    OPENAI_EMBEDDING_DIMENSION: int = 3072  # text-embedding-3-large default
+    OPENAI_EMBEDDING_BATCH_SIZE: int = 100
+
+    # Supabase
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
+    SUPABASE_SERVICE_KEY: Optional[str] = None
+    SUPABASE_STORAGE_BUCKET: str = "ipo-documents"
+
+    # Document Processing
     CHUNK_SIZE: int = 512
     CHUNK_OVERLAP: int = 128
 
     # File Upload
     MAX_UPLOAD_SIZE: int = 104857600  # 100MB
     ALLOWED_EXTENSIONS: str = "pdf,docx,doc"
-    UPLOAD_DIR: str = "/app/uploads"
+    USE_SUPABASE_STORAGE: bool = True  # Use Supabase Storage instead of local filesystem
 
     # Verification
     VERIFICATION_BATCH_SIZE: int = 10
@@ -83,6 +93,14 @@ class Settings(BaseSettings):
     # Monitoring
     SENTRY_DSN: Optional[str] = None
     PROMETHEUS_ENABLED: bool = True
+
+    # Rate Limiting
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_PER_MINUTE: int = 60
+
+    # Caching
+    CACHE_TTL: int = 3600  # 1 hour
+    CACHE_ENABLED: bool = True
 
     model_config = SettingsConfigDict(
         env_file=".env",

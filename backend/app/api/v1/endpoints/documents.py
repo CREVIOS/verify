@@ -1,4 +1,4 @@
-"""Document endpoints."""
+"""Document endpoints with Supabase Storage integration."""
 
 import os
 import shutil
@@ -15,6 +15,7 @@ from app.db.models import Document, Project, DocumentType
 from app.schemas.document import DocumentResponse, DocumentUpdate, DocumentUploadResponse
 from app.core.config import settings
 from app.tasks.document_tasks import index_document_task, index_project_documents_task
+from app.services.storage_service import storage_service
 
 router = APIRouter()
 
@@ -59,24 +60,42 @@ async def upload_document(
                 detail=f"File too large. Max size: {settings.MAX_UPLOAD_SIZE} bytes"
             )
 
-        # Create upload directory
-        upload_dir = Path(settings.UPLOAD_DIR) / str(project_id)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-
         # Generate unique filename
         unique_filename = f"{uuid4()}_{file.filename}"
-        file_path = upload_dir / unique_filename
 
-        # Save file
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        # Upload to Supabase Storage or local filesystem
+        if settings.USE_SUPABASE_STORAGE:
+            # Reset file position
+            file.file.seek(0)
+
+            # Upload to Supabase Storage
+            storage_path = storage_service.upload_file(
+                file=file.file,
+                filename=unique_filename,
+                project_id=project_id,
+                content_type=file.content_type
+            )
+            file_path = storage_path
+        else:
+            # Fallback to local filesystem
+            upload_dir = Path(settings.UPLOAD_DIR) / str(project_id)
+            upload_dir.mkdir(parents=True, exist_ok=True)
+
+            file_path_local = upload_dir / unique_filename
+
+            # Save file locally
+            file.file.seek(0)
+            with open(file_path_local, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            file_path = str(file_path_local)
 
         # Create document record
         document = Document(
             project_id=project_id,
             filename=unique_filename,
             original_filename=file.filename,
-            file_path=str(file_path),
+            file_path=file_path,
             file_size=file_size,
             mime_type=file.content_type or "application/octet-stream",
             document_type=document_type
@@ -306,9 +325,12 @@ async def delete_document(
                 detail="Document not found"
             )
 
-        # Delete file
-        if os.path.exists(document.file_path):
-            os.remove(document.file_path)
+        # Delete file from storage
+        if settings.USE_SUPABASE_STORAGE:
+            storage_service.delete_file(document.file_path)
+        else:
+            if os.path.exists(document.file_path):
+                os.remove(document.file_path)
 
         # Delete from Weaviate
         from app.services.vector_store import vector_store

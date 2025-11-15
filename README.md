@@ -13,26 +13,39 @@ A production-grade IPO document verification platform with AI-powered citation t
 - 🔄 **Real-time Updates**: WebSocket support for live verification status
 - 🗃️ **Vector Search**: Weaviate integration for semantic document retrieval
 
-## Tech Stack
+## Tech Stack (State-of-the-Art 2025)
 
 ### Frontend
-- **Next.js 16**: App Router with React Server Components
-- **shadcn/ui**: Beautiful, accessible components
-- **TailwindCSS**: Utility-first styling
+- **Next.js 15.1+**: App Router with Turbopack, React Server Components
+- **pnpm 8.15+**: Fast, disk-efficient package manager (3x faster than npm)
+- **shadcn/ui**: Beautiful, accessible Radix UI components
+- **TailwindCSS 3.4+**: Utility-first styling with JIT
 - **PDF.js**: Advanced PDF rendering with highlighting
-- **Zustand**: State management
-- **Socket.IO**: Real-time updates
+- **Zustand**: Lightweight state management (< 1KB)
+- **Socket.IO**: Real-time WebSocket updates
+- **TypeScript 5.3+**: Full type safety
 
-### Backend
-- **FastAPI**: High-performance Python web framework
+### Backend (Production-Optimized)
+- **FastAPI 0.109+**: High-performance async Python framework
+- **Poetry**: Modern dependency management with lock files
+- **OpenAI text-embedding-3-large**: SOTA embedding model (3,072 dimensions)
+- **Google Gemini 1.5 Pro**: Latest multimodal LLM for verification
+- **Supabase Storage**: S3-compatible object storage with CDN
 - **Langchain**: LLM orchestration framework
-- **Google Gemini**: AI model for verification
-- **Celery**: Distributed task queue
-- **RabbitMQ**: Message broker
-- **Redis**: Caching and session storage
-- **SQLAlchemy**: ORM with connection pooling
-- **Supabase**: PostgreSQL database
-- **Weaviate**: Vector database for semantic search
+- **Celery 5.3+**: Distributed task queue with retry logic
+- **RabbitMQ 3.12+**: Reliable message broker
+- **Redis 7+**: In-memory cache and session store
+- **SQLAlchemy 2.0+**: Async ORM with connection pooling (20 connections)
+- **PostgreSQL 16**: Via Supabase with PgBouncer
+- **Weaviate 4.4+**: Vector database for semantic search
+
+### Production Features
+- **Rate Limiting**: SlowAPI middleware (60 req/min)
+- **Monitoring**: Sentry + Prometheus + Flower
+- **Caching**: Multi-layer with Redis (1hr TTL)
+- **Logging**: Structured JSON logging with Loguru
+- **Security**: JWT auth, bcrypt hashing, input validation
+- **Performance**: Async/await, batch processing, connection pooling
 
 ## Architecture
 
