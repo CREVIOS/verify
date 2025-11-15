@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     GEMINI_TEMPERATURE: float = 0.1
     GEMINI_MAX_TOKENS: int = 8192
 
+    # Mistral AI (for document extraction and citation)
+    MISTRAL_API_KEY: str
+    MISTRAL_MODEL: str = "mistral-large-latest"  # Best for reasoning and extraction
+    MISTRAL_TEMPERATURE: float = 0.1
+    MISTRAL_MAX_TOKENS: int = 8192
+
     # OpenAI (for embeddings)
     OPENAI_API_KEY: str
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-large"
