@@ -82,6 +82,7 @@ API Docs: http://localhost:8000/api/docs
 - **[PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)** - Deployment, monitoring, and troubleshooting
 - **[TECH_STACK.md](TECH_STACK.md)** - Technology decisions and comparisons
 - **[FINAL_SUMMARY.md](FINAL_SUMMARY.md)** - Production readiness and system overview
+- **[IMPROVEMENT_ANALYSIS.md](IMPROVEMENT_ANALYSIS.md)** - 2025 best practices and enhancement roadmap
 
 ## 🔧 Development
 
